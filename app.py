@@ -47,7 +47,7 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Model Information")
     st.sidebar.info("""
-    **Model**: RoBERTa-base Sentiment Analysis
+    **Model**: Rule-based Sentiment Analyzer
     
     **Classes**: Positive, Negative, Neutral
     
@@ -55,8 +55,8 @@ def main():
     
     **Limitations**: 
     - Best for English text
-    - Max 512 tokens per text
-    - May struggle with sarcasm
+    - Max 5000 characters per text
+    - Uses lexicon-based approach
     """)
     
     if page == "Single Text Analysis":
