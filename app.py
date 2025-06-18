@@ -9,6 +9,10 @@ import json
 from datetime import datetime
 import os
 
+## Default to 8501 
+PORT = os.getenv("PORT", 8501)  
+st.run(port=int(PORT))
+
 # Import utility modules
 from utils.sentiment_analyzer import SentimentAnalyzer
 from utils.text_processor import TextProcessor
