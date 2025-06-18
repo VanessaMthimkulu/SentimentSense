@@ -135,7 +135,7 @@ def create_comparison_chart(comparison_data):
             y=[1] * len(comparison_data),  # All bars same height for sentiment
             marker_color=colors,
             text=comparison_data['Sentiment'],
-            textposition='middle',
+            textposition='inside',
             name='Sentiment',
             hovertemplate='<b>%{x}</b><br>Sentiment: %{text}<extra></extra>'
         ),
