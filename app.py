@@ -11,7 +11,7 @@ import os
 
 ## Default to 8501 
 PORT = os.getenv("PORT", 8501)  
-st.run(port=int(PORT))
+st.set_page_config(page_title="Sentiment Analysis App")
 
 # Import utility modules
 from utils.sentiment_analyzer import SentimentAnalyzer
