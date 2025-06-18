@@ -12,22 +12,42 @@ import streamlit as st
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
-    nltk.download('punkt', quiet=True)
+    try:
+        nltk.download('punkt', quiet=True)
+    except:
+        pass
+
+try:
+    nltk.data.find('tokenizers/punkt_tab')
+except LookupError:
+    try:
+        nltk.download('punkt_tab', quiet=True)
+    except:
+        pass
 
 try:
     nltk.data.find('corpora/stopwords')
 except LookupError:
-    nltk.download('stopwords', quiet=True)
+    try:
+        nltk.download('stopwords', quiet=True)
+    except:
+        pass
 
 try:
     nltk.data.find('corpora/wordnet')
 except LookupError:
-    nltk.download('wordnet', quiet=True)
+    try:
+        nltk.download('wordnet', quiet=True)
+    except:
+        pass
 
 try:
     nltk.data.find('taggers/averaged_perceptron_tagger')
 except LookupError:
-    nltk.download('averaged_perceptron_tagger', quiet=True)
+    try:
+        nltk.download('averaged_perceptron_tagger', quiet=True)
+    except:
+        pass
 
 class TextProcessor:
     def __init__(self):
@@ -93,8 +113,12 @@ class TextProcessor:
             # Clean text
             cleaned_text = self.clean_text(text)
             
-            # Tokenize
-            tokens = word_tokenize(cleaned_text)
+            # Try NLTK tokenization first, fallback to simple tokenization
+            try:
+                tokens = word_tokenize(cleaned_text)
+            except:
+                # Fallback: simple regex-based tokenization
+                tokens = re.findall(r'\b[a-zA-Z]+\b', cleaned_text.lower())
             
             # Remove stopwords and short words
             filtered_tokens = [
@@ -104,17 +128,23 @@ class TextProcessor:
                 and word.isalpha()  # Only alphabetic words
             ]
             
-            # Get POS tags to focus on nouns, adjectives, and verbs
-            pos_tags = pos_tag(filtered_tokens)
+            # Try POS tagging, fallback to frequency-based filtering
+            try:
+                pos_tags = pos_tag(filtered_tokens)
+                # Filter by POS tags (focus on meaningful words)
+                meaningful_words = [
+                    word for word, pos in pos_tags 
+                    if pos.startswith(('NN', 'JJ', 'VB', 'RB'))  # Nouns, adjectives, verbs, adverbs
+                ]
+            except:
+                # Fallback: use all filtered tokens
+                meaningful_words = filtered_tokens
             
-            # Filter by POS tags (focus on meaningful words)
-            meaningful_words = [
-                word for word, pos in pos_tags 
-                if pos.startswith(('NN', 'JJ', 'VB', 'RB'))  # Nouns, adjectives, verbs, adverbs
-            ]
-            
-            # Lemmatize words
-            lemmatized_words = [self.lemmatizer.lemmatize(word) for word in meaningful_words]
+            # Try lemmatization, fallback to original words
+            try:
+                lemmatized_words = [self.lemmatizer.lemmatize(word) for word in meaningful_words]
+            except:
+                lemmatized_words = meaningful_words
             
             # Count frequency and get most common
             word_freq = Counter(lemmatized_words)
@@ -123,8 +153,14 @@ class TextProcessor:
             return keywords
             
         except Exception as e:
-            st.error(f"Error extracting keywords: {str(e)}")
-            return []
+            # Final fallback: simple word extraction
+            try:
+                words = re.findall(r'\b[a-zA-Z]{' + str(min_length) + ',}\b', text.lower())
+                filtered_words = [w for w in words if w not in self.stop_words]
+                word_freq = Counter(filtered_words)
+                return [word for word, count in word_freq.most_common(num_keywords)]
+            except:
+                return []
     
     def extract_sentiment_words(self, text):
         """
@@ -153,7 +189,11 @@ class TextProcessor:
         
         # Clean and tokenize text
         cleaned_text = self.clean_text(text)
-        tokens = word_tokenize(cleaned_text)
+        try:
+            tokens = word_tokenize(cleaned_text)
+        except:
+            # Fallback tokenization
+            tokens = re.findall(r'\b[a-zA-Z]+\b', cleaned_text.lower())
         
         # Find sentiment words
         found_positive = [word for word in tokens if word in positive_words]
@@ -180,11 +220,20 @@ class TextProcessor:
         try:
             # Basic counts
             char_count = len(text)
-            word_count = len(word_tokenize(text))
-            sentence_count = len(sent_tokenize(text))
+            
+            # Try NLTK tokenization, fallback to simple methods
+            try:
+                word_count = len(word_tokenize(text))
+                sentence_count = len(sent_tokenize(text))
+                words = word_tokenize(text.lower())
+            except:
+                # Fallback methods
+                words = re.findall(r'\b\w+\b', text.lower())
+                word_count = len(words)
+                sentences = re.split(r'[.!?]+', text)
+                sentence_count = len([s for s in sentences if s.strip()])
             
             # Average word length
-            words = word_tokenize(text.lower())
             avg_word_length = sum(len(word) for word in words) / len(words) if words else 0
             
             # Reading time estimate (average 200 words per minute)
@@ -289,12 +338,19 @@ class TextProcessor:
         if not text:
             return "unknown"
         
-        # Count English words (very basic approach)
-        english_words = set(stopwords.words('english'))
-        words = word_tokenize(text.lower())
-        english_word_count = sum(1 for word in words if word in english_words)
-        
-        if english_word_count / len(words) > 0.3:
-            return "english"
-        else:
-            return "non-english"
+        try:
+            # Count English words (very basic approach)
+            english_words = set(stopwords.words('english'))
+            try:
+                words = word_tokenize(text.lower())
+            except:
+                words = re.findall(r'\b\w+\b', text.lower())
+                
+            english_word_count = sum(1 for word in words if word in english_words)
+            
+            if len(words) > 0 and english_word_count / len(words) > 0.3:
+                return "english"
+            else:
+                return "non-english"
+        except:
+            return "unknown"
