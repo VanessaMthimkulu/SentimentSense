@@ -1,7 +1,7 @@
 import os
 import streamlit as st
-from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
-import torch
+import re
+from collections import Counter
 import logging
 
 # Set up logging
@@ -10,46 +10,54 @@ logger = logging.getLogger(__name__)
 
 class SentimentAnalyzer:
     def __init__(self):
-        self.model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-        self.pipeline = None
-        self.tokenizer = None
-        self.model = None
+        self.model_name = "Rule-based Sentiment Analyzer"
         self._initialize_model()
     
     def _initialize_model(self):
         """Initialize the sentiment analysis model"""
         try:
-            # Check if CUDA is available
-            device = 0 if torch.cuda.is_available() else -1
+            # Load sentiment lexicons
+            self.positive_words = {
+                'good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic',
+                'love', 'like', 'enjoy', 'happy', 'pleased', 'satisfied', 'perfect',
+                'awesome', 'brilliant', 'outstanding', 'superb', 'delighted',
+                'thrilled', 'excited', 'impressed', 'recommend', 'best', 'beautiful',
+                'nice', 'incredible', 'marvelous', 'magnificent', 'stellar',
+                'phenomenal', 'exceptional', 'remarkable', 'splendid', 'terrific',
+                'fabulous', 'divine', 'lovely', 'charming', 'pleasant', 'fun',
+                'cool', 'sweet', 'fresh', 'clean', 'smooth', 'fast', 'easy',
+                'comfortable', 'cozy', 'warm', 'friendly', 'helpful', 'kind',
+                'generous', 'honest', 'reliable', 'trustworthy', 'professional'
+            }
             
-            # Load the model with caching
-            self.pipeline = pipeline(
-                "sentiment-analysis",
-                model=self.model_name,
-                device=device,
-                return_all_scores=True
-            )
+            self.negative_words = {
+                'bad', 'terrible', 'awful', 'horrible', 'disgusting', 'hate',
+                'dislike', 'disappointed', 'frustrated', 'angry', 'upset', 'poor',
+                'worst', 'pathetic', 'useless', 'annoying', 'boring', 'stupid',
+                'ridiculous', 'waste', 'avoid', 'nasty', 'ugly', 'dirty', 'slow',
+                'expensive', 'cheap', 'broken', 'damaged', 'defective', 'faulty',
+                'uncomfortable', 'difficult', 'hard', 'confusing', 'complicated',
+                'rude', 'mean', 'harsh', 'cruel', 'unfair', 'dishonest',
+                'unreliable', 'unprofessional', 'sucks', 'fails', 'disappointing'
+            }
             
-            # Load tokenizer for text length checking
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            # Intensity modifiers
+            self.intensifiers = {
+                'very': 1.5, 'extremely': 2.0, 'absolutely': 1.8, 'completely': 1.7,
+                'totally': 1.6, 'really': 1.4, 'quite': 1.2, 'rather': 1.1,
+                'pretty': 1.1, 'incredibly': 1.9, 'amazingly': 1.8, 'exceptionally': 1.9
+            }
             
-            logger.info(f"Model {self.model_name} loaded successfully")
+            self.diminishers = {
+                'slightly': 0.7, 'somewhat': 0.8, 'kind of': 0.8, 'sort of': 0.8,
+                'a bit': 0.8, 'a little': 0.7, 'barely': 0.5, 'hardly': 0.4
+            }
+            
+            logger.info(f"Model {self.model_name} initialized successfully")
             
         except Exception as e:
-            logger.error(f"Error loading model: {str(e)}")
-            # Fallback to a simpler model
-            try:
-                self.pipeline = pipeline(
-                    "sentiment-analysis",
-                    model="distilbert-base-uncased-finetuned-sst-2-english",
-                    device=device,
-                    return_all_scores=True
-                )
-                self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
-                logger.info("Fallback model loaded successfully")
-            except Exception as fallback_error:
-                logger.error(f"Fallback model failed: {str(fallback_error)}")
-                raise Exception("Unable to load any sentiment analysis model")
+            logger.error(f"Error initializing model: {str(e)}")
+            raise Exception("Unable to initialize sentiment analysis model")
     
     def analyze_sentiment(self, text):
         """
@@ -67,46 +75,71 @@ class SentimentAnalyzer:
         # Clean and preprocess text
         text = self._preprocess_text(text)
         
-        # Check text length
-        if len(text) > 5000:  # Rough character limit
-            text = text[:5000]  # Truncate if too long
-        
         try:
-            # Get all sentiment scores
-            results = self.pipeline(text)
+            # Calculate sentiment score
+            sentiment_score = self._calculate_sentiment_score(text)
             
-            # Handle different model outputs
-            if isinstance(results[0], list):
-                # Model returns all scores
-                scores = results[0]
+            # Determine label and confidence
+            if sentiment_score > 0.1:
+                label = 'POSITIVE'
+                confidence = min(0.95, 0.6 + abs(sentiment_score) * 0.35)
+            elif sentiment_score < -0.1:
+                label = 'NEGATIVE'
+                confidence = min(0.95, 0.6 + abs(sentiment_score) * 0.35)
             else:
-                # Model returns single result
-                scores = results
+                label = 'NEUTRAL'
+                confidence = max(0.5, 0.8 - abs(sentiment_score) * 0.3)
             
-            # Find the highest confidence score
-            best_result = max(scores, key=lambda x: x['score'])
-            
-            # Map labels to standard format
-            label_mapping = {
-                'LABEL_0': 'NEGATIVE',
-                'LABEL_1': 'NEUTRAL', 
-                'LABEL_2': 'POSITIVE',
-                'NEGATIVE': 'NEGATIVE',
-                'POSITIVE': 'POSITIVE',
-                'NEUTRAL': 'NEUTRAL'
-            }
-            
-            mapped_label = label_mapping.get(best_result['label'], best_result['label'])
+            # Create all_scores for compatibility
+            all_scores = [
+                {'label': 'POSITIVE', 'score': confidence if label == 'POSITIVE' else 1-confidence},
+                {'label': 'NEGATIVE', 'score': confidence if label == 'NEGATIVE' else 1-confidence},
+                {'label': 'NEUTRAL', 'score': confidence if label == 'NEUTRAL' else 1-confidence}
+            ]
             
             return {
-                'label': mapped_label,
-                'score': best_result['score'],
-                'all_scores': scores
+                'label': label,
+                'score': confidence,
+                'all_scores': all_scores
             }
             
         except Exception as e:
             logger.error(f"Error during sentiment analysis: {str(e)}")
             raise Exception(f"Sentiment analysis failed: {str(e)}")
+    
+    def _calculate_sentiment_score(self, text):
+        """Calculate sentiment score using rule-based approach"""
+        words = re.findall(r'\b\w+\b', text.lower())
+        
+        positive_score = 0
+        negative_score = 0
+        
+        for i, word in enumerate(words):
+            # Check for intensifiers/diminishers before sentiment words
+            modifier = 1.0
+            if i > 0:
+                prev_word = words[i-1]
+                if prev_word in self.intensifiers:
+                    modifier = self.intensifiers[prev_word]
+                elif prev_word in self.diminishers:
+                    modifier = self.diminishers[prev_word]
+            
+            # Score sentiment words
+            if word in self.positive_words:
+                positive_score += modifier
+            elif word in self.negative_words:
+                negative_score += modifier
+        
+        # Normalize scores
+        total_words = len(words)
+        if total_words > 0:
+            positive_score = positive_score / total_words
+            negative_score = negative_score / total_words
+        
+        # Calculate final sentiment score
+        sentiment_score = positive_score - negative_score
+        
+        return sentiment_score
     
     def _preprocess_text(self, text):
         """
@@ -175,8 +208,8 @@ class SentimentAnalyzer:
         """
         return {
             'model_name': self.model_name,
-            'device': 'CUDA' if torch.cuda.is_available() else 'CPU',
-            'max_length': self.tokenizer.model_max_length if self.tokenizer else 512,
+            'device': 'CPU',
+            'max_length': 5000,
             'labels': ['POSITIVE', 'NEGATIVE', 'NEUTRAL']
         }
     
@@ -190,17 +223,9 @@ class SentimentAnalyzer:
         Returns:
             tuple: (is_valid, message)
         """
-        if not self.tokenizer:
-            return True, "Length validation not available"
+        max_length = 5000
         
-        try:
-            tokens = self.tokenizer.encode(text)
-            max_length = self.tokenizer.model_max_length
-            
-            if len(tokens) > max_length:
-                return False, f"Text too long ({len(tokens)} tokens, max {max_length})"
-            
-            return True, "Text length acceptable"
-            
-        except Exception as e:
-            return True, f"Length validation failed: {str(e)}"
+        if len(text) > max_length:
+            return False, f"Text too long ({len(text)} characters, max {max_length})"
+        
+        return True, "Text length acceptable"
