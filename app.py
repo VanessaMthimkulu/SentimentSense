@@ -212,6 +212,10 @@ def display_single_analysis_results(result):
 if st.session_state.get('current_analysis'):
     result = st.session_state.current_analysis  # safely retrieve it
 
+def display_single_analysis_results(result):
+    ...
+    # other components like metrics and charts above
+
     st.subheader("Export Results")
     export_utils = ExportUtils()
 
