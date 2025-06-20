@@ -209,8 +209,18 @@ def display_single_analysis_results(result):
     
     # Export options
     # Only show this section if analysis has been done
-if st.session_state.get('current_analysis'):
-    result = st.session_state.current_analysis  # safely retrieve it
+#if st.session_state.get('current_analysis'):
+    #result = st.session_state.current_analysis  # safely retrieve it
+    
+# Always show previous result if it exists
+if st.session_state.get("current_analysis"):
+    display_single_analysis_results(st.session_state.current_analysis)
+
+# Trigger analysis only when button is clicked
+if text_to_analyze and st.button("Analyze Sentiment", type="primary"):
+    with st.spinner("Analyzing sentiment..."):
+        ...
+        st.session_state.current_analysis = analysis_result
 
     st.subheader("Export Results")
     export_utils = ExportUtils()
