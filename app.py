@@ -208,29 +208,63 @@ def display_single_analysis_results(result):
     st.markdown(highlighted_text, unsafe_allow_html=True)
     
     # Export options
+    import streamlit as st
+from datetime import datetime
+
+# Dummy placeholder for your analysis function
+def analyze_sentiment(text):
+    return {"text": text, "sentiment": "Positive", "score": 0.8}
+
+# Placeholder for export helpers
+class ExportUtils:
+    def export_to_json(self, data):
+        import json
+        return json.dumps(data, indent=2)
+
+    def export_to_csv(self, data):
+        import pandas as pd
+        from io import StringIO
+        df = pd.DataFrame(data)
+        output = StringIO()
+        df.to_csv(output, index=False)
+        return output.getvalue()
+
+# UI starts here
+st.title("🚀 Sentiment Analysis")
+
+user_input = st.text_area("Enter text for analysis")
+
+if st.button("Analyze"):
+    result = analyze_sentiment(user_input)
+    st.session_state["result"] = result  # Save result for export
+    st.write(f"**Sentiment:** {result['sentiment']}")
+    st.write(f"**Confidence Score:** {result['score']}")
+
+# Show export options only if there's something to export
+if "result" in st.session_state:
+    result = st.session_state["result"]
     st.subheader("Export Results")
     export_utils = ExportUtils()
-    
+
     col1, col2 = st.columns(2)
+
     with col1:
-        if st.button("Export as JSON"):
-            json_data = export_utils.export_to_json([result])
-            st.download_button(
-                label="Download JSON",
-                data=json_data,
-                file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                mime="application/json"
-            )
-    
+        json_data = export_utils.export_to_json([result])
+        st.download_button(
+            label="📥 Download JSON",
+            data=json_data,
+            file_name=f"sentiment_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            mime="application/json"
+        )
+
     with col2:
-        if st.button("Export as CSV"):
-            csv_data = export_utils.export_to_csv([result])
-            st.download_button(
-                label="Download CSV",
-                data=csv_data,
-                file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
-            )
+        csv_data = export_utils.export_to_csv([result])
+        st.download_button(
+            label="📥 Download CSV",
+            data=csv_data,
+            file_name=f"sentiment_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv"
+        )
 
 def batch_processing():
     st.header("Batch Processing")
