@@ -207,30 +207,41 @@ def display_single_analysis_results(result):
     highlighted_text = highlight_keywords(result['text'], result['keywords'])
     st.markdown(highlighted_text, unsafe_allow_html=True)
     
-    # Export options
+    # Export options    
+    import streamlit as st
+    from datetime import datetime
+
+def display_single_analysis_results(result):
     st.subheader("Export Results")
     export_utils = ExportUtils()
-    
+
     col1, col2 = st.columns(2)
+
     with col1:
         if st.button("Export as JSON"):
-            json_data = export_utils.export_to_json([result])
-            st.download_button(
-                label="Download JSON",
-                data=json_data,
-                file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                mime="application/json"
-            )
-    
+            json_data = export_utils.export_to_json(result)
+            st.session_state['json_data'] = json_data
+
+    if 'json_data' in st.session_state:
+        st.download_button(
+            label="📥 Download JSON",
+            data=st.session_state['json_data'],
+            file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            mime="application/json"
+        )
+
     with col2:
         if st.button("Export as CSV"):
-            csv_data = export_utils.export_to_csv([result])
-            st.download_button(
-                label="Download CSV",
-                data=csv_data,
-                file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
-            )
+            csv_data = export_utils.export_to_csv(result)
+            st.session_state['csv_data'] = csv_data
+
+    if 'csv_data' in st.session_state:
+        st.download_button(
+            label="📥 Download CSV",
+            data=st.session_state['csv_data'],
+            file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv"
+        )
 
 def batch_processing():
     st.header("Batch Processing")
