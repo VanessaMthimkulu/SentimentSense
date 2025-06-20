@@ -208,39 +208,41 @@ def display_single_analysis_results(result):
     st.markdown(highlighted_text, unsafe_allow_html=True)
     
     # Export options
-    # Export options
-st.subheader("Export Results")
-export_utils = ExportUtils()
+    # Only show this section if analysis has been done
+if st.session_state.get('current_analysis'):
+    result = st.session_state.current_analysis  # safely retrieve it
 
-# Initialize session keys if not already set
-if 'json_data' not in st.session_state:
-    st.session_state['json_data'] = None
-if 'csv_data' not in st.session_state:
-    st.session_state['csv_data'] = None
+    st.subheader("Export Results")
+    export_utils = ExportUtils()
 
-col1, col2 = st.columns(2)
+    if 'json_data' not in st.session_state:
+        st.session_state['json_data'] = None
+    if 'csv_data' not in st.session_state:
+        st.session_state['csv_data'] = None
 
-with col1:
-    if st.button("Export as JSON"):
-        st.session_state['json_data'] = export_utils.export_to_json([result])
-    if st.session_state['json_data']:
-        st.download_button(
-            label="Download JSON",
-            data=st.session_state['json_data'],
-            file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-            mime="application/json"
-        )
+    col1, col2 = st.columns(2)
 
-with col2:
-    if st.button("Export as CSV"):
-        st.session_state['csv_data'] = export_utils.export_to_csv([result])
-    if st.session_state['csv_data']:
-        st.download_button(
-            label="Download CSV",
-            data=st.session_state['csv_data'],
-            file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv"
-        )
+    with col1:
+        if st.button("Export as JSON"):
+            st.session_state['json_data'] = export_utils.export_to_json([result])
+        if st.session_state['json_data']:
+            st.download_button(
+                label="Download JSON",
+                data=st.session_state['json_data'],
+                file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json"
+            )
+
+    with col2:
+        if st.button("Export as CSV"):
+            st.session_state['csv_data'] = export_utils.export_to_csv([result])
+        if st.session_state['csv_data']:
+            st.download_button(
+                label="Download CSV",
+                data=st.session_state['csv_data'],
+                file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
 
 def batch_processing():
     st.header("Batch Processing")
