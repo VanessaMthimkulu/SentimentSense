@@ -208,16 +208,14 @@ def display_single_analysis_results(result):
     st.markdown(highlighted_text, unsafe_allow_html=True)
     
     # Export options
-    # Only show this section if analysis has been done
+    
+    st.subheader("Export Results")
+    export_utils = ExportUtils()
+
+# Only show this section if analysis has been done
 if st.session_state.get('current_analysis'):
     result = st.session_state.current_analysis  # safely retrieve it
 
-def display_single_analysis_results(result):
-    ...
-    # other components like metrics and charts above
-
-    st.subheader("Export Results")
-    export_utils = ExportUtils()
 
     if 'json_data' not in st.session_state:
         st.session_state['json_data'] = None
