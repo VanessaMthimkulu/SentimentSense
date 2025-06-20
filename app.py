@@ -208,61 +208,37 @@ def display_single_analysis_results(result):
     st.markdown(highlighted_text, unsafe_allow_html=True)
     
     # Export options
-    import streamlit as st
-from datetime import datetime
+    # Export options
+st.subheader("Export Results")
+export_utils = ExportUtils()
 
-# Dummy placeholder for your analysis function
-def analyze_sentiment(text):
-    return {"text": text, "sentiment": "Positive", "score": 0.8}
+# Initialize session keys if not already set
+if 'json_data' not in st.session_state:
+    st.session_state['json_data'] = None
+if 'csv_data' not in st.session_state:
+    st.session_state['csv_data'] = None
 
-# Placeholder for export helpers
-class ExportUtils:
-    def export_to_json(self, data):
-        import json
-        return json.dumps(data, indent=2)
+col1, col2 = st.columns(2)
 
-    def export_to_csv(self, data):
-        import pandas as pd
-        from io import StringIO
-        df = pd.DataFrame(data)
-        output = StringIO()
-        df.to_csv(output, index=False)
-        return output.getvalue()
-
-# UI starts here
-st.title("🚀 Sentiment Analysis")
-
-user_input = st.text_area("Enter text for analysis")
-
-if st.button("Analyze"):
-    result = analyze_sentiment(user_input)
-    st.session_state["result"] = result  # Save result for export
-    st.write(f"**Sentiment:** {result['sentiment']}")
-    st.write(f"**Confidence Score:** {result['score']}")
-
-# Show export options only if there's something to export
-if "result" in st.session_state:
-    result = st.session_state["result"]
-    st.subheader("Export Results")
-    export_utils = ExportUtils()
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        json_data = export_utils.export_to_json([result])
+with col1:
+    if st.button("Export as JSON"):
+        st.session_state['json_data'] = export_utils.export_to_json([result])
+    if st.session_state['json_data']:
         st.download_button(
-            label="📥 Download JSON",
-            data=json_data,
-            file_name=f"sentiment_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            label="Download JSON",
+            data=st.session_state['json_data'],
+            file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json"
         )
 
-    with col2:
-        csv_data = export_utils.export_to_csv([result])
+with col2:
+    if st.button("Export as CSV"):
+        st.session_state['csv_data'] = export_utils.export_to_csv([result])
+    if st.session_state['csv_data']:
         st.download_button(
-            label="📥 Download CSV",
-            data=csv_data,
-            file_name=f"sentiment_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            label="Download CSV",
+            data=st.session_state['csv_data'],
+            file_name=f"sentiment_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv"
         )
 
