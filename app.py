@@ -209,13 +209,84 @@ def display_single_analysis_results(result):
     
     # Export options
     # Only show this section if analysis has been done
-#if st.session_state.get('current_analysis'):
+    #if st.session_state.get('current_analysis'):
     #result = st.session_state.current_analysis  # safely retrieve it
+
     
 # Always show previous result if it exists
-if st.session_state.get("current_analysis"):
-    display_single_analysis_results(st.session_state.current_analysis)
+def single_text_analysis():
+    st.header("Single Text Analysis")
+    
+    # Always define this variable upfront
+    text_to_analyze = ""
 
+    # Text input options
+    input_method = st.radio("Choose input method:", ["Direct Text Entry", "File Upload"])
+    
+    if input_method == "Direct Text Entry":
+        text_to_analyze = st.text_area(
+            "Enter text to analyze:",
+            height=150,
+            placeholder="Type or paste your text here..."
+        )
+    else:
+        uploaded_file = st.file_uploader(
+            "Upload a text file",
+            type=['txt', 'csv'],
+            help="Upload a .txt file or .csv file with text content"
+        )
+
+        if uploaded_file is not None:
+            file_handler = FileHandler()
+            try:
+                if uploaded_file.type == "text/plain":
+                    text_to_analyze = file_handler.read_text_file(uploaded_file)
+                else:
+                    df = file_handler.read_csv_file(uploaded_file)
+                    st.write("CSV Preview:")
+                    st.dataframe(df.head())
+
+                    text_columns = df.select_dtypes(include=['object']).columns.tolist()
+                    if text_columns:
+                        selected_column = st.selectbox("Select text column:", text_columns)
+                        text_to_analyze = " ".join(df[selected_column].astype(str).tolist())
+                    else:
+                        st.error("No text columns found in the CSV file.")
+            except Exception as e:
+                st.error(f"Error reading file: {str(e)}")
+
+    if text_to_analyze and st.button("Analyze Sentiment", type="primary"):
+        with st.spinner("Analyzing sentiment..."):
+            try:
+                # Clear old export data
+                st.session_state['json_data'] = None
+                st.session_state['csv_data'] = None
+
+                result = st.session_state.analyzer.analyze_sentiment(text_to_analyze)
+
+                text_processor = TextProcessor()
+                keywords = text_processor.extract_keywords(text_to_analyze, num_keywords=10)
+
+                analysis_result = {
+                    'text': text_to_analyze,
+                    'sentiment': result['label'],
+                    'confidence': result['score'],
+                    'keywords': keywords,
+                    'timestamp': datetime.now().isoformat()
+                }
+
+                st.session_state.current_analysis = analysis_result
+                st.session_state.results.append(analysis_result)
+
+                display_single_analysis_results(analysis_result)
+
+            except Exception as e:
+                st.error(f"Error during analysis: {str(e)}")
+
+    # Re-render results after rerun so export buttons show immediately
+    if st.session_state.get("current_analysis"):
+        display_single_analysis_results(st.session_state.current_analysis)
+    
 # Trigger analysis only when button is clicked
 if text_to_analyze and st.button("Analyze Sentiment", type="primary"):
     with st.spinner("Analyzing sentiment..."):
